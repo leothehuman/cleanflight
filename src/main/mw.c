@@ -708,7 +708,7 @@ void loop(void)
 #endif
 
 #ifdef SONAR
-        // the 'annexCode' initialses rcCommand, updateAltHoldState depends on valid rcCommand data.
+        // the 'annexCode' initialses rcCommand, updateSonarAltHoldState depends on valid rcCommand data.
         if (haveProcessedAnnexCodeOnce) {
             if (sensors(SENSOR_SONAR)) {
                 updateSonarAltHoldState();

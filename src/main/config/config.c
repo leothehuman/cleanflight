@@ -133,7 +133,7 @@ static const uint8_t EEPROM_CONF_VERSION = 104;
 static void resetAccelerometerTrims(flightDynamicsTrims_t *accelerometerTrims)
 {
     accelerometerTrims->values.pitch = 0;
-    accelerometerTrims->values.roll = 0;
+    accelerometerTrims->values.roll = 256;
     accelerometerTrims->values.yaw = 0;
 }
 

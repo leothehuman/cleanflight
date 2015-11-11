@@ -443,8 +443,8 @@ static void triServoCalibrationStep()
             {
                 if (servoCalib.firstTime)
                 {
-                    servoCalib.gyroPeakSum = (uint16_t)(servoCalib.gyroPeakSum * 0.7f);
-                    servoCalib.baseTime = (uint32_t)((micros() - servoCalib.timestamp_us) * 0.5f);
+                    servoCalib.gyroPeakSum = servoCalib.gyroPeakSum * 7 / 10;
+                    servoCalib.baseTime = (micros() - servoCalib.timestamp_us) / 2;
                     servoCalib.firstTime = false;
                     servoCalib.counterLimit = 3;
                     servoCalib.state = INIT;
@@ -452,10 +452,10 @@ static void triServoCalibrationStep()
                 else
                 {
                     // done
-                    float time = (micros() - servoCalib.timestamp_us) / 1000000.0f;
-                    float speed = (2.0f * tailServoMaxAngle / 10.0f) / time;
-                    debug[2] = (int16_t)speed;
-                    servoCalib.sumMeasurements += (uint16_t)speed;
+                    uint32_t time = micros() - servoCalib.timestamp_us;
+                    uint16_t speed = (uint32_t) 200000 * tailServoMaxAngle / time;
+                    debug[2] = speed;
+                    servoCalib.sumMeasurements += speed;
 
                     servoCalib.lowestMeasurement = MIN(speed, servoCalib.lowestMeasurement);
                     servoCalib.highestMeasurement = MAX(speed, servoCalib.highestMeasurement);

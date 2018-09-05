@@ -21,6 +21,7 @@
 
 extern "C" {
 #include "common/axis.h"
+#include "drivers/sensor.h"
 #include "sensors/boardalignment.h"
 #include "sensors/sensors.h"
 }
@@ -31,17 +32,17 @@ extern "C" {
  * This test file contains an independent method of rotating a vector.
  * The output of alignSensor() is compared to the output of the test
  * rotation method.
- * 
+ *
  * For each alignment condition (CW0, CW90, etc) the source vector under
- * test is set to a unit vector along each axis (x-axis, y-axis, z-axis) 
+ * test is set to a unit vector along each axis (x-axis, y-axis, z-axis)
  * plus one additional random vector is tested.
  */
 
 #define DEG2RAD 0.01745329251
 
-static void rotateVector(int16_t mat[3][3], int16_t vec[3], int16_t *out)
+static void rotateVector(int32_t mat[3][3], float vec[3], float *out)
 {
-    int16_t tmp[3];
+    float tmp[3];
 
     for(int i=0; i<3; i++) {
         tmp[i] = 0;
@@ -49,14 +50,14 @@ static void rotateVector(int16_t mat[3][3], int16_t vec[3], int16_t *out)
             tmp[i] += mat[j][i] * vec[j];
         }
     }
-    
+
     out[0]=tmp[0];
     out[1]=tmp[1];
     out[2]=tmp[2];
 
 }
 
-//static void initXAxisRotation(int16_t mat[][3], int16_t angle)
+//static void initXAxisRotation(int32_t mat[][3], int32_t angle)
 //{
 //    mat[0][0] =  1;
 //    mat[0][1] =  0;
@@ -69,7 +70,7 @@ static void rotateVector(int16_t mat[3][3], int16_t vec[3], int16_t *out)
 //    mat[2][2] =  cos(angle*DEG2RAD);
 //}
 
-static void initYAxisRotation(int16_t mat[][3], int16_t angle)
+static void initYAxisRotation(int32_t mat[][3], int32_t angle)
 {
     mat[0][0] =  cos(angle*DEG2RAD);
     mat[0][1] =  0;
@@ -82,7 +83,7 @@ static void initYAxisRotation(int16_t mat[][3], int16_t angle)
     mat[2][2] =  cos(angle*DEG2RAD);
 }
 
-static void initZAxisRotation(int16_t mat[][3], int16_t angle)
+static void initZAxisRotation(int32_t mat[][3], int32_t angle)
 {
     mat[0][0] =  cos(angle*DEG2RAD);
     mat[0][1] = -sin(angle*DEG2RAD);
@@ -95,25 +96,24 @@ static void initZAxisRotation(int16_t mat[][3], int16_t angle)
     mat[2][2] =  1;
 }
 
-static void testCW(sensor_align_e rotation, int16_t angle)
+static void testCW(sensor_align_e rotation, int32_t angle)
 {
-    int16_t src[XYZ_AXIS_COUNT];
-    int16_t dest[XYZ_AXIS_COUNT];
-    int16_t test[XYZ_AXIS_COUNT];
+    float src[XYZ_AXIS_COUNT];
+    float test[XYZ_AXIS_COUNT];
 
     // unit vector along x-axis
     src[X] = 1;
     src[Y] = 0;
     src[Z] = 0;
-    
-    int16_t matrix[3][3];
+
+    int32_t matrix[3][3];
     initZAxisRotation(matrix, angle);
     rotateVector(matrix, src, test);
 
-    alignSensors(src, dest, rotation);
-    EXPECT_EQ(test[X], dest[X]) << "X-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "X-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "X-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    alignSensors(src, rotation);
+    EXPECT_EQ(test[X], src[X]) << "X-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "X-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "X-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
     // unit vector along y-axis
     src[X] = 0;
@@ -121,10 +121,10 @@ static void testCW(sensor_align_e rotation, int16_t angle)
     src[Z] = 0;
 
     rotateVector(matrix, src, test);
-    alignSensors(src, dest, rotation);
-    EXPECT_EQ(test[X], dest[X]) << "Y-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Y-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Y-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    alignSensors(src, rotation);
+    EXPECT_EQ(test[X], src[X]) << "Y-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Y-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Y-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
     // unit vector along z-axis
     src[X] = 0;
@@ -132,10 +132,10 @@ static void testCW(sensor_align_e rotation, int16_t angle)
     src[Z] = 1;
 
     rotateVector(matrix, src, test);
-    alignSensors(src, dest, rotation);
-    EXPECT_EQ(test[X], dest[X]) << "Z-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Z-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Z-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    alignSensors(src, rotation);
+    EXPECT_EQ(test[X], src[X]) << "Z-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Z-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Z-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
     // random vector to test
     src[X] = rand() % 5;
@@ -143,38 +143,37 @@ static void testCW(sensor_align_e rotation, int16_t angle)
     src[Z] = rand() % 5;
 
     rotateVector(matrix, src, test);
-    alignSensors(src, dest, rotation);
-    EXPECT_EQ(test[X], dest[X]) << "Random alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Random alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Random alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    alignSensors(src,  rotation);
+    EXPECT_EQ(test[X], src[X]) << "Random alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Random alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Random alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 }
 
 /*
  * Since the order of flip and rotation matters, these tests make the
  * assumption that the 'flip' occurs first, followed by clockwise rotation
  */
-static void testCWFlip(sensor_align_e rotation, int16_t angle)
+static void testCWFlip(sensor_align_e rotation, int32_t angle)
 {
-    int16_t src[XYZ_AXIS_COUNT];
-    int16_t dest[XYZ_AXIS_COUNT];
-    int16_t test[XYZ_AXIS_COUNT];
+    float src[XYZ_AXIS_COUNT];
+    float test[XYZ_AXIS_COUNT];
 
     // unit vector along x-axis
     src[X] = 1;
     src[Y] = 0;
     src[Z] = 0;
-    
-    int16_t matrix[3][3];
+
+    int32_t matrix[3][3];
     initYAxisRotation(matrix, 180);
     rotateVector(matrix, src, test);
     initZAxisRotation(matrix, angle);
     rotateVector(matrix, test, test);
 
-    alignSensors(src, dest, rotation);
+    alignSensors(src, rotation);
 
-    EXPECT_EQ(test[X], dest[X]) << "X-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "X-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "X-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    EXPECT_EQ(test[X], src[X]) << "X-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "X-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "X-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
     // unit vector along y-axis
     src[X] = 0;
@@ -186,11 +185,11 @@ static void testCWFlip(sensor_align_e rotation, int16_t angle)
     initZAxisRotation(matrix, angle);
     rotateVector(matrix, test, test);
 
-    alignSensors(src, dest, rotation);
+    alignSensors(src, rotation);
 
-    EXPECT_EQ(test[X], dest[X]) << "Y-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Y-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Y-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    EXPECT_EQ(test[X], src[X]) << "Y-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Y-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Y-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
     // unit vector along z-axis
     src[X] = 0;
@@ -202,11 +201,11 @@ static void testCWFlip(sensor_align_e rotation, int16_t angle)
     initZAxisRotation(matrix, angle);
     rotateVector(matrix, test, test);
 
-    alignSensors(src, dest, rotation);
+    alignSensors(src, rotation);
 
-    EXPECT_EQ(test[X], dest[X]) << "Z-Unit alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Z-Unit alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Z-Unit alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    EXPECT_EQ(test[X], src[X]) << "Z-Unit alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Z-Unit alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Z-Unit alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 
      // random vector to test
     src[X] = rand() % 5;
@@ -218,13 +217,13 @@ static void testCWFlip(sensor_align_e rotation, int16_t angle)
     initZAxisRotation(matrix, angle);
     rotateVector(matrix, test, test);
 
-    alignSensors(src, dest, rotation);
+    alignSensors(src, rotation);
 
-    EXPECT_EQ(test[X], dest[X]) << "Random alignment does not match in X-Axis. " << test[X] << " " << dest[X];
-    EXPECT_EQ(test[Y], dest[Y]) << "Random alignment does not match in Y-Axis. " << test[Y] << " " << dest[Y];
-    EXPECT_EQ(test[Z], dest[Z]) << "Random alignment does not match in Z-Axis. " << test[Z] << " " << dest[Z];
+    EXPECT_EQ(test[X], src[X]) << "Random alignment does not match in X-Axis. " << test[X] << " " << src[X];
+    EXPECT_EQ(test[Y], src[Y]) << "Random alignment does not match in Y-Axis. " << test[Y] << " " << src[Y];
+    EXPECT_EQ(test[Z], src[Z]) << "Random alignment does not match in Z-Axis. " << test[Z] << " " << src[Z];
 }
- 
+
 
 TEST(AlignSensorTest, ClockwiseZeroDegrees)
 {
@@ -266,4 +265,3 @@ TEST(AlignSensorTest, ClockwiseTwoSeventyDegreesFlip)
 {
     testCWFlip(CW270_DEG_FLIP, 270);
 }
-

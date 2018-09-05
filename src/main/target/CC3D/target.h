@@ -1,129 +1,137 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
+
+#pragma once
 
 #define TARGET_BOARD_IDENTIFIER "CC3D" // CopterControl 3D
 
-#define LED0_GPIO   GPIOB
-#define LED0_PIN    Pin_3 // PB3 (LED)
-#define LED0_PERIPHERAL RCC_APB2Periph_GPIOB
-#define LED0
+#define LED0_PIN                PB3
 
-#define INVERTER_PIN Pin_2 // PB2 (BOOT1) used as inverter select GPIO
-#define INVERTER_GPIO GPIOB
-#define INVERTER_PERIPHERAL RCC_APB2Periph_GPIOB
-#define INVERTER_USART USART1
+#define INVERTER_PIN_UART1      PB2 // PB2 (BOOT1) used as inverter select GPIO
 
-#define BEEP_GPIO GPIOA
-#define BEEP_PIN Pin_15 // PA15 (Beeper)
-#define BEEP_PERIPHERAL RCC_APB2Periph_GPIOA
+#define USE_BEEPER
+#define BEEPER_PIN              PA15
+#define BEEPER_OPT              PA2
 
-#define MPU6000_CS_GPIO       GPIOA
-#define MPU6000_CS_PIN        GPIO_Pin_4
-#define MPU6000_SPI_INSTANCE  SPI1
-
-#define M25P16_CS_GPIO        GPIOB
-#define M25P16_CS_PIN         GPIO_Pin_12
-#define M25P16_SPI_INSTANCE   SPI2
-
-#define USE_FLASHFS
-#define USE_FLASH_M25P16
-
-#define USABLE_TIMER_CHANNEL_COUNT 12
-
-#define GYRO
-#define USE_GYRO_SPI_MPU6000
-
-#define GYRO_MPU6000_ALIGN CW270_DEG
-
-#define ACC
-#define USE_ACC_SPI_MPU6000
-
-#define ACC_MPU6000_ALIGN CW270_DEG
-
-// External I2C BARO
-#define BARO
-#define USE_BARO_MS5611
-#define USE_BARO_BMP085
-
-// External I2C MAG
-#define MAG
-#define USE_MAG_HMC5883
-
-#define INVERTER
-#define BEEPER
-#define DISPLAY
-
-#define USE_VCP
-#define USE_USART1
-#define USE_USART3
-#define USE_SOFTSERIAL1
-#define SERIAL_PORT_COUNT 4
-
-#define SOFTSERIAL_1_TIMER TIM3
-#define SOFTSERIAL_1_TIMER_TX_HARDWARE 1 // PWM 2
-#define SOFTSERIAL_1_TIMER_RX_HARDWARE 2 // PWM 3
-
-#define USART3_RX_PIN Pin_11
-#define USART3_TX_PIN Pin_10
-#define USART3_GPIO GPIOB
-#define USART3_APB1_PERIPHERALS RCC_APB1Periph_USART3
-#define USART3_APB2_PERIPHERALS RCC_APB2Periph_GPIOB
+#define USE_EXTI
+#define MPU_INT_EXTI            PA3
+#define USE_MPU_DATA_READY_SIGNAL
+//#define DEBUG_MPU_DATA_READY_INTERRUPT
 
 #define USE_SPI
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
 
-#define USE_I2C
-#define I2C_DEVICE (I2CDEV_2) // Flex port - SCL/PB10, SDA/PB11
+#define MPU6000_CS_PIN          PA4
+#define MPU6000_SPI_INSTANCE    SPI1
 
-#define USE_ADC
+#define FLASH_CS_PIN            PB12
+#define FLASH_SPI_INSTANCE      SPI2
 
-#define CURRENT_METER_ADC_GPIO      GPIOB
-#define CURRENT_METER_ADC_GPIO_PIN  GPIO_Pin_1
-#define CURRENT_METER_ADC_CHANNEL   ADC_Channel_9
+#define USE_FLASHFS
+#define USE_FLASH_M25P16
 
-#define VBAT_ADC_GPIO               GPIOA
-#define VBAT_ADC_GPIO_PIN           GPIO_Pin_0
-#define VBAT_ADC_CHANNEL            ADC_Channel_0
+#define USE_GYRO
+#define USE_GYRO_SPI_MPU6000
+#define GYRO_MPU6000_ALIGN CW270_DEG
 
-#define RSSI_ADC_GPIO               GPIOA
-#define RSSI_ADC_GPIO_PIN           GPIO_Pin_1
-#define RSSI_ADC_CHANNEL            ADC_Channel_1
+#define USE_ACC
+#define USE_ACC_SPI_MPU6000
+#define ACC_MPU6000_ALIGN CW270_DEG
 
-#define GPS
-#define LED_STRIP
-#define LED_STRIP_TIMER TIM3
+// MPU6000 interrupts
+#define USE_MPU_DATA_READY_SIGNAL
 
-#define BLACKBOX
-#define TELEMETRY
-#define SERIAL_RX
-#define SONAR
-#define USE_SERVOS
-#define USE_CLI
+//#define USE_I2C
+//#define I2C_DEVICE (I2CDEV_2) // Flex port - SCL/PB10, SDA/PB11
 
-#if defined(OPBL)
-// disabled some features for OPBL build due to code size.
-#undef DISPLAY
-#undef SONAR
-#define SKIP_CLI_COMMAND_HELP
+// External I2C BARO
+//#define USE_BARO
+//#define USE_BARO_MS5611
+//#define USE_BARO_BMP085
+//#define USE_BARO_BMP280
+
+// External I2C MAG
+//#define USE_MAG
+//#define USE_MAG_HMC5883
+
+#define USE_VCP
+#define USE_UART1
+#define USE_UART3
+#define USE_SOFTSERIAL1
+#define USE_SOFTSERIAL2
+
+#define SERIAL_PORT_COUNT       5
+
+#ifndef CC3D_OPBL
+#define SOFTSERIAL1_TX_PIN      PB5 // PWM 2
+#define SOFTSERIAL1_RX_PIN      PB0 // PWM 3
 #endif
 
+#ifdef USE_UART1_RX_DMA
+#undef USE_UART1_RX_DMA
+#endif
 
-#define SPEKTRUM_BIND
-// USART3, PB11 (Flexport)
-#define BIND_PORT  GPIOB
-#define BIND_PIN   Pin_11
+#define UART3_RX_PIN            PB11
+#define UART3_TX_PIN            PB10
+
+#define USE_ADC
+#define CURRENT_METER_ADC_PIN   PB1
+#define VBAT_ADC_PIN            PA0
+#define RSSI_ADC_PIN            PB0
+
+#define USE_SERIAL_4WAY_BLHELI_INTERFACE
+
+//#define USE_RANGEFINDER
+//#define USE_RANGEFINDER_HCSR04
+//#define RANGEFINDER_HCSR04_ECHO_PIN          PB0
+//#define RANGEFINDER_HCSR04_TRIGGER_PIN       PB5
+
+#undef USE_MAG
+
+#ifdef CC3D_OPBL
+#define SKIP_CLI_COMMAND_HELP
+//#undef USE_SERVOS
+#undef USE_BARO
+#undef USE_RANGEFINDER
+#undef USE_RANGEFINDER_HCSR04
+#undef USE_SERIAL_4WAY_BLHELI_INTERFACE
+//#undef USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
+//#undef USE_SERIALRX_SBUS       // Frsky and Futaba receivers
+//#undef USE_SERIALRX_IBUS       // FlySky and Turnigy receivers
+#undef USE_SERIALRX_CRSF       // Team Black Sheep Crossfire protocol
+#undef USE_SERIALRX_SUMD       // Graupner Hott protocol
+#undef USE_SERIALRX_SUMH       // Graupner legacy protocol
+#undef USE_SERIALRX_XBUS       // JR
+#undef USE_LED_STRIP
+#endif
+
+//#undef USE_LED_STRIP
+#define DEFAULT_RX_FEATURE      FEATURE_RX_PPM
+
+// IO - from schematics
+#define TARGET_IO_PORTA         0xffff
+#define TARGET_IO_PORTB         0xffff
+#define TARGET_IO_PORTC         ( BIT(14) )
+
+#define PARTIAL_REMAP_TIM3
+
+#define USABLE_TIMER_CHANNEL_COUNT 12
+#define USED_TIMERS             ( TIM_N(1) | TIM_N(2) | TIM_N(3) | TIM_N(4) )

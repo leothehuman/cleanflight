@@ -8,6 +8,8 @@ There are 3 basic types of receivers:
 2. PPM Receivers
 3. Serial Receivers
 
+As of 2016 the recommendation for new purchases is a Serial or PPM based receiver.  Avoid Parallel PWM recievers (1 wire per channel).  This is due to the amount of IO pins parallel PWM based receivers use.  Some new FC's do not support parallel PWM. 
+
 ## Parallel PWM Receivers
 
 8 channel support, 1 channel per input pin.  On some platforms using parallel input will disable the use of serial ports
@@ -21,17 +23,15 @@ PPM is sometimes known as PPM SUM or CPPM.
 
 These receivers are reported working:
 
-FrSky D4R-II
-http://www.frsky-rc.com/product/pro.php?pro_id=24
+* [FrSky D4R-II](http://www.frsky-rc.com/product/pro.php?pro_id=24)
+* [Graupner GR24](http://www.graupner.de/en/products/33512/product.aspx)
+* [R615X Spektrum/JR DSM2/DSMX Compatible 6Ch 2.4GHz Receiver w/CPPM](http://www.hobbyking.com/hobbyking/store/__46632__OrangeRx_R615X_DSM2_DSMX_Compatible_6Ch_2_4GHz_Receiver_w_CPPM.html)
+* [FrSky D8R-XP 8ch telemetry receiver, or CPPM and RSSI enabled receiver](http://www.frsky-rc.com/product/pro.php?pro_id=21)
+* [FrSky X4R and FrSky X4RSB](http://www.frsky-rc.com/download/view.php?sort=&down=158&file=X4R-X4RSB) when flashed with CPPM firmware and bound with jumper between signal pins 2 and 3
+* All FrSky S.Bus enabled devices when connected with [S.Bus CPPM converter cable](http://www.frsky-rc.com/product/pro.php?pro_id=112). Without jumper this converter cable uses 21ms frame size (Channels 1-8). When jumper is in place, it uses 28ms frame and channels 1-12 are available
+* FlySky/Turnigy FS-iA4B, FS-iA6B, FS-iA10 receivers all provide 8channels if the tx is sending them. (FS-i6 and FS-i10 transmitters). Use setting rx-setup/ppm to enable.
 
-Graupner GR24
-http://www.graupner.de/en/products/33512/product.aspx
 
-R615X Spektrum/JR DSM2/DSMX Compatible 6Ch 2.4GHz Receiver w/CPPM
-http://orangerx.com/2014/05/20/r615x-spektrumjr-dsm2dsmx-compatible-6ch-2-4ghz-receiver-wcppm-2/
-
-FrSky D8R-XP 8ch telemetry receiver, or CPPM and RSSI enabled receiver
-http://www.frsky-rc.com/product/pro.php?pro_id=21
 
 ## Serial Receivers
 
@@ -42,7 +42,7 @@ http://www.frsky-rc.com/product/pro.php?pro_id=21
 These receivers are reported working:
 
 Lemon Rx DSMX Compatible PPM 8-Channel Receiver + Lemon DSMX Compatible Satellite with Failsafe
-http://www.lemon-rx.com/shop/index.php?route=product/product&product_id=118
+http://www.lemon-rx.com/index.php?route=product/product&product_id=118
 
 
 ### S.BUS
@@ -50,6 +50,7 @@ http://www.lemon-rx.com/shop/index.php?route=product/product&product_id=118
 16 channels via serial currently supported.  See below how to set up your transmitter.
 
 * You probably need an inverter between the receiver output and the flight controller. However, some flight controllers have this built in (the main port on CC3D, for example), and doesn't need one.
+* Some OpenLRS receivers produce a non-inverted SBUS signal. It is possible to switch SBUS inversion off using CLI command `set sbus_inversion = OFF` when using an F3 based flight controller.
 * Softserial ports cannot be used with SBUS because it runs at too high of a bitrate (1Mbps).  Refer to the chapter specific to your board to determine which port(s) may be used.
 * You will need to configure the channel mapping in the GUI (Receiver tab) or CLI (`map` command). Note that channels above 8 are mapped "straight", with no remapping.
 
@@ -74,18 +75,39 @@ OpenTX 2.09, which is shipped on some Taranis X9D Plus transmitters, has a bug -
 The bug prevents use of all 16 channels.  Upgrade to the latest OpenTX version to allow correct reception of all 16 channels,
 without the fix you are limited to 8 channels regardless of the CH1-16/D16 settings.
 
+### SRXL (formerly XBUS) 
 
+(Serial Receiver Link Protocol)
+SRXL is an open data transfer protocol which allows to transport control data from a rc receiver to another device like a flybarless system 
+by only using one single line. This protocol has been established by SRXL.org based on the idea to create a freely available and unified protocol 
+that manufacturers can easily implement to their receivers and devices that process receiver data. The protocol does not describe an exact definition of 
+how the data must be processed. It only describes a framework in which receiver data can be packed. Each manufacturer can have his own ID, which must be 
+attached to the beginning of each data set, so that the device using this data can correctly identify and process the payload of the dataset.
 
-### XBUS
+Supported receivers:
 
-The firmware currently supports the MODE B version of the XBus protocol.
+#### Multiplex:
+All receivers with SRXL (also FLEXX receivers)
+
+####Gaupner / SJ HOTT:
+All receiver with SUMD support
+
+#### Spektrum:
+AR7700 / AR9020 receiver 
+
+#### JR:
+JR X-BUS
 Make sure to set your TX to use "MODE B" for XBUS in the TX menus!
 See here for info on JR's XBUS protocol: http://www.jrpropo.com/english/propo/XBus/
-
 These receivers are reported working:
 
 XG14 14ch DMSS System w/RG731BX XBus Receiver
 http://www.jramericas.com/233794/JRP00631/
+
+#### Jeti:
+Receivers with UDI output
+
+### XBUS MODE B RJ01
 
 There exist a remote receiver made for small BNF-models like the Align T-Rex 150 helicopter. The code also supports using the Align DMSS RJ01 receiver directly with the cleanflight software.
 To use this receiver you must power it with 3V from the hardware, and then connect the serial line as other serial RX receivers.
@@ -110,6 +132,48 @@ http://www.graupner.de/en/products/870ade17-ace8-427f-943b-657040579906/33565/pr
 
 SUMH is a legacy Graupner protocol.  Graupner have issued a firmware updates for many recivers that lets them use SUMD instead.
 
+### IBUS
+
+10 channels via serial currently supported.
+
+IBUS is the FlySky digital serial protocol and is available with the FS-IA4B, FS-IA6B and
+FS-IA10 receivers. The Turnigy TGY-IA6B and TGY-IA10 are the same
+devices with a different label, therefore they also work.
+
+If you are using a 6ch tx such as the FS-I6 or TGY-I6 then you must flash a 10ch
+firmware on the tx to make use of these extra channels.
+
+These receivers are reported working (all gives 10 channels serial):
+
+- FlySky/Turnigy FS-iA4B 4-Channel Receiver (http://www.flysky-cn.com/products_detail/productId=46.html)
+- FlySky/Turnigy FS-iA6B 6-Channel Receiver (http://www.flysky-cn.com/products_detail/&productId=51.html)
+- FlySky/Turnigy FS-iA10 10-Channel Receiver (http://www.flysky-cn.com/products_detail/productId=53.html)
+- FlySky/Turnigy FS-iA10B 10-Channel Receiver (http://www.flysky-cn.com/products_detail/productId=52.html)
+
+#### Combine flysky ibus telemetry and serial rx on the same FC serial port
+  
+  Connect Flysky FS-iA6B receiver like this:
+```   
+    +---------+
+    | FS-iA6B |
+    |         |
+    | Ser RX  |---|<---\       +------------+
+    |         |        |       | FC         |
+    | Sensor  |--#==#--*-------| SerialTX   |
+    +---------+                +------------+
+```
+
+Use a diode with cathode to receiver serial rx output (for example 1N4148),
+the anode is connected to the FC serial _TX_ pin, and also via a 
+resistor (10KOhm) to the receiver ibus sensor port.
+
+Enable with cli:
+```  
+    serial 1 1088 115200 57600 115200 115200
+    feature RX_SERIAL
+    set serialrx_provider = IBUS
+    save
+```
 ## MultiWii serial protocol (MSP)
 
 Allows you to use MSP commands as the RC input.  Only 8 channel support to maintain compatibility with MSP.
@@ -213,6 +277,7 @@ For Serial RX enable `RX_SERIAL` and set the `serialrx_provider` CLI setting as 
 | SUMH               | 4     |
 | XBUS_MODE_B        | 5     |
 | XBUS_MODE_B_RJ01   | 6     |
+| IBUS               | 7     |
 
 ### PPM/PWM input filtering.
 
@@ -222,8 +287,8 @@ Use the `input_filtering_mode` CLI setting to select a mode.
 
 | Value | Meaning   |
 | ----- | --------- |
-| 0     | Disabled  |
-| 1     | Enabled   |
+| OFF   | Disabled  |
+| ON    | Enabled   |
 
 ## Receiver configuration.
 
@@ -241,6 +306,15 @@ One or more control channels may be set to OFF to signal a failsafe condition to
 Do __NOT USE__ the mode indicated with FAILSAFE instead, as this combination is NOT handled correctly by the FC.
 
 ## Receiver Channel Range Configuration.
+
+The channels defined in CleanFlight are as follows:
+
+| Channel number | Channel name |
+| ----- | --------- |
+| 0     | Roll |
+| 1     | Pitch |
+| 2     | Yaw |
+| 3     | Throttle |
 
 If you have a transmitter/receiver, that output a non-standard pulse range (i.e. 1070-1930 as some Spektrum receivers)
 you could use rx channel range configuration to map actual range of your transmitter to 1000-2000 as expected by Cleanflight.

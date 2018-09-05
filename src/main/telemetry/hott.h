@@ -1,18 +1,21 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -23,9 +26,9 @@
  * Texmode add-on by Michi (mamaretti32@gmail.com)
  */
 
-#ifndef HOTT_TELEMETRY_H_
-#define HOTT_TELEMETRY_H_
+#pragma once
 
+#include "common/time.h"
 
 #define HOTTV4_RXTX 4
 
@@ -55,7 +58,7 @@ typedef enum {
     HOTT_EAM_ALARM1_FLAG_TEMPERATURE_2 = (1 << 4),
     HOTT_EAM_ALARM1_FLAG_ALTITUDE = (1 << 5),
     HOTT_EAM_ALARM1_FLAG_CURRENT = (1 << 6),
-    HOTT_EAM_ALARM1_FLAG_MAIN_VOLTAGE = (1 << 7),
+    HOTT_EAM_ALARM1_FLAG_MAIN_VOLTAGE = (1 << 7)
 } hottEamAlarm1Flag_e;
 
 typedef enum {
@@ -67,7 +70,7 @@ typedef enum {
     HOTT_EAM_ALARM2_FLAG_M3S_DUPLICATE = (1 << 4),
     HOTT_EAM_ALARM2_FLAG_UNKNOWN_1 = (1 << 5),
     HOTT_EAM_ALARM2_FLAG_UNKNOWN_2 = (1 << 6),
-    HOTT_EAM_ALARM2_FLAG_ON_SIGN_OR_TEXT_ACTIVE = (1 << 7),
+    HOTT_EAM_ALARM2_FLAG_ON_SIGN_OR_TEXT_ACTIVE = (1 << 7)
 } hottEamAlarm2Flag_e;
 
 
@@ -487,15 +490,13 @@ typedef struct HOTT_AIRESC_MSG_s {
     uint8_t stop_byte;      //#44 constant value 0x7d
 } HOTT_AIRESC_MSG_t;
 
-void handleHoTTTelemetry(void);
+void handleHoTTTelemetry(timeUs_t currentTimeUs);
 void checkHoTTTelemetryState(void);
 
-void initHoTTTelemetry(telemetryConfig_t *telemetryConfig);
+void initHoTTTelemetry(void);
 void configureHoTTTelemetryPort(void);
 void freeHoTTTelemetryPort(void);
 
 uint32_t getHoTTTelemetryProviderBaudRate(void);
 
 void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage);
-
-#endif /* HOTT_TELEMETRY_H_ */

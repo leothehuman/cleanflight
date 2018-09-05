@@ -1,18 +1,21 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -24,12 +27,12 @@ typedef enum {
     SOFTSERIAL2
 } softSerialPortIndex_e;
 
-serialPort_t *openSoftSerial(softSerialPortIndex_e portIndex, serialReceiveCallbackPtr callback, uint32_t baud, portOptions_t options);
+serialPort_t *openSoftSerial(softSerialPortIndex_e portIndex, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baud, portMode_e mode, portOptions_e options);
 
 // serialPort API
 void softSerialWriteByte(serialPort_t *instance, uint8_t ch);
-uint8_t softSerialTotalBytesWaiting(serialPort_t *instance);
+uint32_t softSerialRxBytesWaiting(const serialPort_t *instance);
+uint32_t softSerialTxBytesFree(const serialPort_t *instance);
 uint8_t softSerialReadByte(serialPort_t *instance);
 void softSerialSetBaudRate(serialPort_t *s, uint32_t baudRate);
-bool isSoftSerialTransmitBufferEmpty(serialPort_t *s);
-
+bool isSoftSerialTransmitBufferEmpty(const serialPort_t *s);

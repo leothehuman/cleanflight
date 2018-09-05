@@ -1,209 +1,154 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of Cleanflight and Betaflight.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Cleanflight and Betaflight are free software. You can redistribute
+ * this software and/or modify this software under the terms of the
+ * GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option)
+ * any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Cleanflight and Betaflight are distributed in the hope that they
+ * will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.
+ *
+ * If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <string.h>
 
-#include <platform.h>
+#include "platform.h"
 
-#include "build_config.h"
+#if defined(USE_I2C) && !defined(SOFT_I2C)
 
-#include "gpio.h"
-#include "system.h"
+#include "build/debug.h"
 
-#include "bus_i2c.h"
+#include "drivers/system.h"
+#include "drivers/io.h"
+#include "drivers/io_impl.h"
+#include "drivers/rcc.h"
 
-#ifndef SOFT_I2C
+#include "drivers/bus_i2c.h"
+#include "drivers/bus_i2c_impl.h"
 
-#define I2C_SHORT_TIMEOUT             ((uint32_t)0x1000)
-#define I2C_LONG_TIMEOUT             ((uint32_t)(10 * I2C_SHORT_TIMEOUT))
+#define IOCFG_I2C_PU IO_CONFIG(GPIO_Mode_AF, GPIO_Speed_50MHz, GPIO_OType_OD, GPIO_PuPd_UP)
+#define IOCFG_I2C    IO_CONFIG(GPIO_Mode_AF, GPIO_Speed_50MHz, GPIO_OType_OD, GPIO_PuPd_NOPULL)
 
-#define I2C1_SCL_GPIO        GPIOB
-#define I2C1_SCL_GPIO_AF     GPIO_AF_4
-#define I2C1_SCL_PIN         GPIO_Pin_6
-#define I2C1_SCL_PIN_SOURCE  GPIO_PinSource6
-#define I2C1_SCL_CLK_SOURCE  RCC_AHBPeriph_GPIOB
-#define I2C1_SDA_GPIO        GPIOB
-#define I2C1_SDA_GPIO_AF     GPIO_AF_4
-#define I2C1_SDA_PIN         GPIO_Pin_7
-#define I2C1_SDA_PIN_SOURCE  GPIO_PinSource7
-#define I2C1_SDA_CLK_SOURCE  RCC_AHBPeriph_GPIOB
+#define I2C_HIGHSPEED_TIMING  0x00500E30  // 1000 Khz, 72Mhz Clock, Analog Filter Delay ON, Setup 40, Hold 4.
+#define I2C_STANDARD_TIMING   0x00E0257A  // 400 Khz, 72Mhz Clock, Analog Filter Delay ON, Rise 100, Fall 10.
 
-#if !defined(I2C2_SCL_GPIO)
-#define I2C2_SCL_GPIO        GPIOF
-#define I2C2_SCL_GPIO_AF     GPIO_AF_4
-#define I2C2_SCL_PIN         GPIO_Pin_6
-#define I2C2_SCL_PIN_SOURCE  GPIO_PinSource6
-#define I2C2_SCL_CLK_SOURCE  RCC_AHBPeriph_GPIOF
-#define I2C2_SDA_GPIO        GPIOA
-#define I2C2_SDA_GPIO_AF     GPIO_AF_4
-#define I2C2_SDA_PIN         GPIO_Pin_10
-#define I2C2_SDA_PIN_SOURCE  GPIO_PinSource10
-#define I2C2_SDA_CLK_SOURCE  RCC_AHBPeriph_GPIOA
-
-#endif
+#define I2C_GPIO_AF         GPIO_AF_4
 
 static uint32_t i2cTimeout;
 
-static volatile uint16_t i2c1ErrorCount = 0;
-static volatile uint16_t i2c2ErrorCount = 0;
+static volatile uint16_t i2cErrorCount = 0;
 
-static I2C_TypeDef *I2Cx = NULL;
+const i2cHardware_t i2cHardware[I2CDEV_COUNT] = {
+#ifdef USE_I2C_DEVICE_1
+    {
+        .device = I2CDEV_1,
+        .reg = I2C1,
+        .sclPins = { I2CPINDEF(PA15), I2CPINDEF(PB6), I2CPINDEF(PB8) },
+        .sdaPins = { I2CPINDEF(PA14), I2CPINDEF(PB7), I2CPINDEF(PB9) },
+        .rcc = RCC_APB1(I2C1),
+    },
+#endif
+#ifdef USE_I2C_DEVICE_2
+    {
+        .device = I2CDEV_2,
+        .reg = I2C2,
+        .sclPins = { I2CPINDEF(PA9), I2CPINDEF(PF6) },
+        .sdaPins = { I2CPINDEF(PA10) },
+        .rcc = RCC_APB1(I2C2),
+    },
+#endif
+};
+
+i2cDevice_t i2cDevice[I2CDEV_COUNT];
 
 ///////////////////////////////////////////////////////////////////////////////
 // I2C TimeoutUserCallback
 ///////////////////////////////////////////////////////////////////////////////
 
-uint32_t i2cTimeoutUserCallback(I2C_TypeDef *I2Cx)
+uint32_t i2cTimeoutUserCallback(void)
 {
-    if (I2Cx == I2C1) {
-        i2c1ErrorCount++;
-    } else {
-        i2c2ErrorCount++;
-    }
+    i2cErrorCount++;
     return false;
 }
 
-void i2cInitPort(I2C_TypeDef *I2Cx)
+void i2cInit(I2CDevice device)
 {
-    GPIO_InitTypeDef GPIO_InitStructure;
-    I2C_InitTypeDef I2C_InitStructure;
-
-    if (I2Cx == I2C1) {
-        RCC_AHBPeriphClockCmd(I2C1_SCL_CLK_SOURCE | I2C1_SDA_CLK_SOURCE, ENABLE);
-        RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
-        RCC_I2CCLKConfig(RCC_I2C1CLK_SYSCLK);
-
-        //i2cUnstick(I2Cx);                                         // Clock out stuff to make sure slaves arent stuck
-
-        GPIO_PinAFConfig(I2C1_SCL_GPIO, I2C1_SCL_PIN_SOURCE, I2C1_SCL_GPIO_AF);
-        GPIO_PinAFConfig(I2C1_SDA_GPIO, I2C1_SDA_PIN_SOURCE, I2C1_SDA_GPIO_AF);
-
-        GPIO_StructInit(&GPIO_InitStructure);
-        I2C_StructInit(&I2C_InitStructure);
-
-        // Init pins
-
-        GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-        GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-        GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-        GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-
-        GPIO_InitStructure.GPIO_Pin = I2C1_SCL_PIN;
-        GPIO_Init(I2C1_SCL_GPIO, &GPIO_InitStructure);
-
-        GPIO_InitStructure.GPIO_Pin = I2C1_SDA_PIN;
-        GPIO_Init(I2C1_SDA_GPIO, &GPIO_InitStructure);
-
-        I2C_StructInit(&I2C_InitStructure);
-
-        I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
-        I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
-        I2C_InitStructure.I2C_DigitalFilter = 0x00;
-        I2C_InitStructure.I2C_OwnAddress1 = 0x00;
-        I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
-        I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-        I2C_InitStructure.I2C_Timing = 0x00E0257A; // 400 Khz, 72Mhz Clock, Analog Filter Delay ON, Rise 100, Fall 10.
-        //I2C_InitStructure.I2C_Timing              = 0x8000050B;
-
-        I2C_Init(I2C1, &I2C_InitStructure);
-
-        I2C_Cmd(I2C1, ENABLE);
+    if (device == I2CINVALID || device > I2CDEV_COUNT) {
+        return;
     }
 
-    if (I2Cx == I2C2) {
-        RCC_AHBPeriphClockCmd(I2C2_SCL_CLK_SOURCE | I2C2_SDA_CLK_SOURCE, ENABLE);
-        RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
-        RCC_I2CCLKConfig(RCC_I2C2CLK_SYSCLK);
+    i2cDevice_t *pDev = &i2cDevice[device];
+    const i2cHardware_t *hw = pDev->hardware;
 
-        //i2cUnstick(I2Cx);                                         // Clock out stuff to make sure slaves arent stuck
-
-        GPIO_PinAFConfig(I2C2_SCL_GPIO, I2C2_SCL_PIN_SOURCE, I2C2_SCL_GPIO_AF);
-        GPIO_PinAFConfig(I2C2_SDA_GPIO, I2C2_SDA_PIN_SOURCE, I2C2_SDA_GPIO_AF);
-
-        GPIO_StructInit(&GPIO_InitStructure);
-        I2C_StructInit(&I2C_InitStructure);
-
-        // Init pins
-        GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-        GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-        GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-        GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-
-        GPIO_InitStructure.GPIO_Pin = I2C2_SCL_PIN;
-        GPIO_Init(I2C2_SCL_GPIO, &GPIO_InitStructure);
-
-        GPIO_InitStructure.GPIO_Pin = I2C2_SDA_PIN;
-        GPIO_Init(I2C2_SDA_GPIO, &GPIO_InitStructure);
-
-        I2C_StructInit(&I2C_InitStructure);
-
-        I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
-        I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
-        I2C_InitStructure.I2C_DigitalFilter = 0x00;
-        I2C_InitStructure.I2C_OwnAddress1 = 0x00;
-        I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
-        I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-
-        // FIXME timing is board specific
-        //I2C_InitStructure.I2C_Timing = 0x00310309; // //400kHz I2C @ 8MHz input -> PRESC=0x0, SCLDEL=0x3, SDADEL=0x1, SCLH=0x03, SCLL=0x09 - value from TauLabs/Sparky
-        // ^ when using this setting and after a few seconds of a scope probe being attached to the I2C bus it was observed that the bus enters
-        // a busy state and does not recover.
-
-        I2C_InitStructure.I2C_Timing = 0x00E0257A; // 400 Khz, 72Mhz Clock, Analog Filter Delay ON, Rise 100, Fall 10.
-
-        //I2C_InitStructure.I2C_Timing              = 0x8000050B;
-
-        I2C_Init(I2C2, &I2C_InitStructure);
-
-        I2C_Cmd(I2C2, ENABLE);
+    if (!hw) {
+        return;
     }
-}
 
-void i2cInit(I2CDevice index)
-{
-    if (index == I2CDEV_1) {
-        I2Cx = I2C1;
-    } else {
-        I2Cx = I2C2;
-    }
-    i2cInitPort(I2Cx);
+    I2C_TypeDef *I2Cx = pDev->reg;
+
+    IO_t scl = pDev->scl;
+    IO_t sda = pDev->sda;
+
+    RCC_ClockCmd(hw->rcc, ENABLE);
+    RCC_I2CCLKConfig(I2Cx == I2C2 ? RCC_I2C2CLK_SYSCLK : RCC_I2C1CLK_SYSCLK);
+
+    IOInit(scl, OWNER_I2C_SCL, RESOURCE_INDEX(device));
+    IOConfigGPIOAF(scl, pDev->pullUp ? IOCFG_I2C_PU : IOCFG_I2C, GPIO_AF_4);
+
+    IOInit(sda, OWNER_I2C_SDA, RESOURCE_INDEX(device));
+    IOConfigGPIOAF(sda, pDev->pullUp ? IOCFG_I2C_PU : IOCFG_I2C, GPIO_AF_4);
+
+    I2C_InitTypeDef i2cInit = {
+        .I2C_Mode = I2C_Mode_I2C,
+        .I2C_AnalogFilter = I2C_AnalogFilter_Enable,
+        .I2C_DigitalFilter = 0x00,
+        .I2C_OwnAddress1 = 0x00,
+        .I2C_Ack = I2C_Ack_Enable,
+        .I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit,
+        .I2C_Timing = (pDev->overClock ? I2C_HIGHSPEED_TIMING : I2C_STANDARD_TIMING)
+    };
+
+    I2C_Init(I2Cx, &i2cInit);
+
+    I2C_StretchClockCmd(I2Cx, ENABLE);
+
+    I2C_Cmd(I2Cx, ENABLE);
 }
 
 uint16_t i2cGetErrorCounter(void)
 {
-    if (I2Cx == I2C1) {
-        return i2c1ErrorCount;
-    }
-
-    return i2c2ErrorCount;
-
+    return i2cErrorCount;
 }
 
-bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
+bool i2cWrite(I2CDevice device, uint8_t addr_, uint8_t reg, uint8_t data)
 {
+    if (device == I2CINVALID || device > I2CDEV_COUNT) {
+        return false;
+    }
+
+    I2C_TypeDef *I2Cx = i2cDevice[device].reg;
+
+    if (!I2Cx) {
+        return false;
+    }
+
     addr_ <<= 1;
 
     /* Test on BUSY Flag */
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_BUSY) != RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -214,7 +159,7 @@ bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_TXIS) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -226,7 +171,7 @@ bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_TCR) == RESET)
     {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -237,7 +182,7 @@ bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_TXIS) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -248,7 +193,7 @@ bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_STOPF) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -258,15 +203,25 @@ bool i2cWrite(uint8_t addr_, uint8_t reg, uint8_t data)
     return true;
 }
 
-bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
+bool i2cRead(I2CDevice device, uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
 {
+    if (device == I2CINVALID || device > I2CDEV_COUNT) {
+        return false;
+    }
+
+    I2C_TypeDef *I2Cx = i2cDevice[device].reg;
+
+    if (!I2Cx) {
+        return false;
+    }
+
     addr_ <<= 1;
 
     /* Test on BUSY Flag */
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_BUSY) != RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -277,7 +232,7 @@ bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_TXIS) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -288,7 +243,7 @@ bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_TC) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 
@@ -301,7 +256,7 @@ bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
         i2cTimeout = I2C_LONG_TIMEOUT;
         while (I2C_GetFlagStatus(I2Cx, I2C_ISR_RXNE) == RESET) {
             if ((i2cTimeout--) == 0) {
-                return i2cTimeoutUserCallback(I2Cx);
+                return i2cTimeoutUserCallback();
             }
         }
 
@@ -318,7 +273,7 @@ bool i2cRead(uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf)
     i2cTimeout = I2C_LONG_TIMEOUT;
     while (I2C_GetFlagStatus(I2Cx, I2C_ISR_STOPF) == RESET) {
         if ((i2cTimeout--) == 0) {
-            return i2cTimeoutUserCallback(I2Cx);
+            return i2cTimeoutUserCallback();
         }
     }
 

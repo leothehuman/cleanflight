@@ -22,75 +22,80 @@
 
 extern "C" {
     #include "platform.h"
-
-    #include "rx/rx.h"
-    #include "io/rc_controls.h"
+    #include "build/debug.h"
+    #include "drivers/io.h"
     #include "common/maths.h"
+    #include "pg/pg.h"
+    #include "pg/pg_ids.h"
+    #include "pg/rx.h"
+    #include "fc/rc_controls.h"
+    #include "fc/rc_modes.h"
+    #include "rx/rx.h"
 }
 
 #include "unittest_macros.h"
 #include "gtest/gtest.h"
 
-#define DE_ACTIVATE_ALL_BOXES   0
-
 extern "C" {
-uint32_t rcModeActivationMask;
+boxBitmask_t rcModeActivationMask;
+int16_t debug[DEBUG16_VALUE_COUNT];
+uint8_t debugMode = 0;
 
-extern uint16_t applyRxChannelRangeConfiguraton(int sample, rxChannelRangeConfiguration_t range);
+extern uint16_t applyRxChannelRangeConfiguraton(int sample, const rxChannelRangeConfig_t *range);
 }
 
-#define RANGE_CONFIGURATION(min, max) (rxChannelRangeConfiguration_t) {min, max}
+#define RANGE_CONFIGURATION(min, max) new (rxChannelRangeConfig_t) {min, max}
 
 TEST(RxChannelRangeTest, TestRxChannelRanges)
 {
-    rcModeActivationMask = DE_ACTIVATE_ALL_BOXES;   // BOXFAILSAFE must be OFF
+    memset(&rcModeActivationMask, 0, sizeof(rcModeActivationMask)); // BOXFAILSAFE must be OFF
 
     // No signal, special condition
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(1000, 2000)), 0);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(1300, 1700)), 0);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(900, 2100)), 0);
+    EXPECT_EQ(0, applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(0, applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(0, applyRxChannelRangeConfiguraton(0, RANGE_CONFIGURATION(900, 2100)));
 
     // Exact mapping
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1000, RANGE_CONFIGURATION(1000, 2000)), 1000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(1000, 2000)), 1500);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2000, RANGE_CONFIGURATION(1000, 2000)), 2000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(700, RANGE_CONFIGURATION(1000, 2000)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(1000, 2000)), 2250);
+    EXPECT_EQ(1000, applyRxChannelRangeConfiguraton(1000, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(1500, applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(2000, applyRxChannelRangeConfiguraton(2000, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(700, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(1000, 2000)));
 
     // Reversed channel
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1000, RANGE_CONFIGURATION(2000, 1000)), 2000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(2000, 1000)), 1500);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2000, RANGE_CONFIGURATION(2000, 1000)), 1000);
+    EXPECT_EQ(2000, applyRxChannelRangeConfiguraton(1000, RANGE_CONFIGURATION(2000, 1000)));
+    EXPECT_EQ(1500, applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(2000, 1000)));
+    EXPECT_EQ(1000, applyRxChannelRangeConfiguraton(2000, RANGE_CONFIGURATION(2000, 1000)));
 
     // Shifted range
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(900, RANGE_CONFIGURATION(900, 1900)), 1000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1400, RANGE_CONFIGURATION(900, 1900)), 1500);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1900, RANGE_CONFIGURATION(900, 1900)), 2000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(600, RANGE_CONFIGURATION(900, 1900)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(900, 1900)), 2250);
-    
+    EXPECT_EQ(1000, applyRxChannelRangeConfiguraton(900, RANGE_CONFIGURATION(900, 1900)));
+    EXPECT_EQ(1500, applyRxChannelRangeConfiguraton(1400, RANGE_CONFIGURATION(900, 1900)));
+    EXPECT_EQ(2000, applyRxChannelRangeConfiguraton(1900, RANGE_CONFIGURATION(900, 1900)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(600, RANGE_CONFIGURATION(900, 1900)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(900, 1900)));
+
     // Narrower range than expected
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1300, RANGE_CONFIGURATION(1300, 1700)), 1000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(1300, 1700)), 1500);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1700, RANGE_CONFIGURATION(1300, 1700)), 2000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(700, RANGE_CONFIGURATION(1300, 1700)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(1300, 1700)), 2250);
+    EXPECT_EQ(1000, applyRxChannelRangeConfiguraton(1300, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(1500, applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(2000, applyRxChannelRangeConfiguraton(1700, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(700, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(2500, RANGE_CONFIGURATION(1300, 1700)));
 
     // Wider range than expected
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(900, RANGE_CONFIGURATION(900, 2100)), 1000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(900, 2100)), 1500);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2100, RANGE_CONFIGURATION(900, 2100)), 2000);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(600, RANGE_CONFIGURATION(900, 2100)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(2700, RANGE_CONFIGURATION(900, 2100)), 2250);
-    
-    // extreme out of range
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(1000, 2000)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(1300, 1700)), 750);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(900, 2100)), 750);
+    EXPECT_EQ(1000, applyRxChannelRangeConfiguraton(900, RANGE_CONFIGURATION(900, 2100)));
+    EXPECT_EQ(1500, applyRxChannelRangeConfiguraton(1500, RANGE_CONFIGURATION(900, 2100)));
+    EXPECT_EQ(2000, applyRxChannelRangeConfiguraton(2100, RANGE_CONFIGURATION(900, 2100)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(600, RANGE_CONFIGURATION(900, 2100)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(2700, RANGE_CONFIGURATION(900, 2100)));
 
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(1000, 2000)), 2250);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(1300, 1700)), 2250);
-    EXPECT_EQ(applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(900, 2100)), 2250);
+    // extreme out of range
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(750, applyRxChannelRangeConfiguraton(1, RANGE_CONFIGURATION(900, 2100)));
+
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(1000, 2000)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(1300, 1700)));
+    EXPECT_EQ(2250, applyRxChannelRangeConfiguraton(10000, RANGE_CONFIGURATION(900, 2100)));
 }
 
 
@@ -103,13 +108,13 @@ void failsafeOnRxResume(void) {}
 uint32_t micros(void) { return 0; }
 uint32_t millis(void) { return 0; }
 
-void rxPwmInit(rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+void rxPwmInit(rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxRuntimeConfig);
     UNUSED(callback);
 }
 
-bool sbusInit(rxConfig_t *initialRxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+bool sbusInit(rxConfig_t *initialRxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(initialRxConfig);
     UNUSED(rxRuntimeConfig);
@@ -117,7 +122,7 @@ bool sbusInit(rxConfig_t *initialRxConfig, rxRuntimeConfig_t *rxRuntimeConfig, r
     return true;
 }
 
-bool spektrumInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+bool spektrumInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
     UNUSED(rxRuntimeConfig);
@@ -125,7 +130,7 @@ bool spektrumInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcRe
     return true;
 }
 
-bool sumdInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+bool sumdInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
     UNUSED(rxRuntimeConfig);
@@ -133,7 +138,7 @@ bool sumdInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRa
     return true;
 }
 
-bool sumhInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+bool sumhInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
     UNUSED(rxRuntimeConfig);
@@ -141,7 +146,39 @@ bool sumhInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRa
     return true;
 }
 
-bool rxMspInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataPtr *callback)
+bool crsfRxInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
+{
+    UNUSED(rxConfig);
+    UNUSED(rxRuntimeConfig);
+    UNUSED(callback);
+    return true;
+}
+
+bool jetiExBusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
+{
+    UNUSED(rxConfig);
+    UNUSED(rxRuntimeConfig);
+    UNUSED(callback);
+    return true;
+}
+
+bool ibusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
+{
+    UNUSED(rxConfig);
+    UNUSED(rxRuntimeConfig);
+    UNUSED(callback);
+    return true;
+}
+
+bool xBusInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
+{
+    UNUSED(rxConfig);
+    UNUSED(rxRuntimeConfig);
+    UNUSED(callback);
+    return true;
+}
+
+bool rxMspInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadRawDataFnPtr *callback)
 {
     UNUSED(rxConfig);
     UNUSED(rxRuntimeConfig);
@@ -151,6 +188,9 @@ bool rxMspInit(rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig, rcReadR
 
 bool feature(uint32_t) {
     return false;
+}
+
+void featureClear(uint32_t) {
 }
 
 bool rxMspFrameComplete(void)
@@ -181,4 +221,3 @@ void failsafeOnValidDataFailed(void)
 }
 
 }
-
